@@ -188,7 +188,7 @@ public abstract class AbstractProgramLoader implements Loader {
 	}
 
 	@Override
-	public String validateOptions(ByteProvider provider, LoadSpec loadSpec, List<Option> options) {
+	public String validateOptions(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program) {
 		if (options != null) {
 			for (Option option : options) {
 				String name = option.getName();
@@ -204,7 +204,7 @@ public abstract class AbstractProgramLoader implements Loader {
 	}
 
 	/**
-	 * This gets called after the given list of {@Program}s is finished loading.  It provides
+	 * This gets called after the given list of {@link Program}s is finished loading.  It provides
 	 * subclasses an opportunity to do follow-on actions to the load.
 	 * 
 	 * @param loadedPrograms The {@link Program}s that got loaded.

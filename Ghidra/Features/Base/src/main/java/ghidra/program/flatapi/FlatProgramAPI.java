@@ -16,8 +16,8 @@
 package ghidra.program.flatapi;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import ghidra.app.cmd.comments.SetCommentCmd;
@@ -29,6 +29,7 @@ import ghidra.app.plugin.core.analysis.AutoAnalysisManager;
 import ghidra.app.plugin.core.clear.ClearCmd;
 import ghidra.app.plugin.core.clear.ClearOptions;
 import ghidra.app.plugin.core.searchmem.RegExSearchData;
+import ghidra.app.script.GhidraScript;
 import ghidra.framework.main.AppInfo;
 import ghidra.framework.model.*;
 import ghidra.framework.plugintool.PluginTool;
@@ -42,7 +43,6 @@ import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.program.util.AddressEvaluator;
 import ghidra.program.util.string.*;
 import ghidra.util.Conv;
-import ghidra.util.SystemUtilities;
 import ghidra.util.ascii.AsciiCharSetRecognizer;
 import ghidra.util.datastruct.Accumulator;
 import ghidra.util.datastruct.ListAccumulator;
@@ -512,13 +512,13 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the PLATE comment at the specified address.  The comment returned is the raw text
-	 * of the comment.  Contrastingly, calling {@link #getPlateCommentAsRendered(Address)} will
+	 * of the comment.  Contrastingly, calling {@link GhidraScript#getPlateCommentAsRendered(Address)} will
 	 * return the text of the comment as it is rendered in the display.
 	 *
 	 * @param address the address to get the comment
 	 * @return the PLATE comment at the specified address or null
 	 * if one does not exist
-	 * @see #getPlateCommentAsRendered(Address)
+	 * @see GhidraScript#getPlateCommentAsRendered(Address)
 	 */
 	public final String getPlateComment(Address address) {
 		return currentProgram.getListing().getComment(CodeUnit.PLATE_COMMENT, address);
@@ -526,13 +526,13 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the PRE comment at the specified address.  The comment returned is the raw text
-	 * of the comment.  Contrastingly, calling {@link #getPreCommentAsRendered(Address)} will
+	 * of the comment.  Contrastingly, calling {@link GhidraScript#getPreCommentAsRendered(Address)} will
 	 * return the text of the comment as it is rendered in the display.
 	 *
 	 * @param address the address to get the comment
 	 * @return the PRE comment at the specified address or null
 	 * if one does not exist
-	 * @see #getPreCommentAsRendered(Address)
+	 * @see GhidraScript#getPreCommentAsRendered(Address)
 	 */
 	public final String getPreComment(Address address) {
 		return currentProgram.getListing().getComment(CodeUnit.PRE_COMMENT, address);
@@ -540,13 +540,13 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the POST comment at the specified address.  The comment returned is the raw text
-	 * of the comment.  Contrastingly, calling {@link #getPostCommentAsRendered(Address)} will
+	 * of the comment.  Contrastingly, calling {@link GhidraScript#getPostCommentAsRendered(Address)} will
 	 * return the text of the comment as it is rendered in the display.
 	 *
 	 * @param address the address to get the comment
 	 * @return the POST comment at the specified address or null
 	 * if one does not exist
-	 * @see #getPostCommentAsRendered(Address)
+	 * @see GhidraScript#getPostCommentAsRendered(Address)
 	 */
 	public final String getPostComment(Address address) {
 		return currentProgram.getListing().getComment(CodeUnit.POST_COMMENT, address);
@@ -554,12 +554,12 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the EOL comment at the specified address.  The comment returned is the raw text
-	 * of the comment.  Contrastingly, calling {@link #getEOLCommentAsRendered(Address)} will
+	 * of the comment.  Contrastingly, calling {@link GhidraScript#getEOLCommentAsRendered(Address)} will
 	 * return the text of the comment as it is rendered in the display.
 	 * @param address the address to get the comment
 	 * @return the EOL comment at the specified address or null
 	 * if one does not exist
-	 * @see #getEOLCommentAsRendered(Address)
+	 * @see GhidraScript#getEOLCommentAsRendered(Address)
 	 */
 	public final String getEOLComment(Address address) {
 		return currentProgram.getListing().getComment(CodeUnit.EOL_COMMENT, address);
@@ -625,9 +625,9 @@ public class FlatProgramAPI {
 	}
 
 	/**
-	 * Finds the first <matchLimit> occurrences of the byte array sequence that matches the given byte string,
-	 * starting from the address. If the start address is null, then the find will start
-	 * from the minimum address of the program.
+	 * Finds the first {@code <matchLimit>} occurrences of the byte array sequence that matches
+	 * the given byte string, starting from the address. If the start address is null, then the
+	 * find will start from the minimum address of the program.
 	 * <p>
 	 * The <tt>byteString</tt> may contain regular expressions.  The following
 	 * highlights some example search strings (note the use of double backslashes ("\\")):
@@ -651,9 +651,9 @@ public class FlatProgramAPI {
 	}
 
 	/**
-	 * Finds the first <matchLimit> occurrences of the byte array sequence that matches the given byte string,
-	 * starting from the address. If the start address is null, then the find will start
-	 * from the minimum address of the program.
+	 * Finds the first {@code <matchLimit>} occurrences of the byte array sequence that matches
+	 * the given byte string, starting from the address. If the start address is null, then the
+	 * find will start from the minimum address of the program.
 	 * <p>
 	 * The <tt>byteString</tt> may contain regular expressions.  The following
 	 * highlights some example search strings (note the use of double backslashes ("\\")):
@@ -1181,7 +1181,7 @@ public class FlatProgramAPI {
 	 * Returns the instruction defined before the specified address or null
 	 * if no instruction exists.
 	 * The instruction that is returned does not have to be contiguous.
-	 * @param instruction the instruction
+	 * @param address the address of the instruction
 	 * @return the instruction defined before the specified address or null if no instruction exists
 	 */
 	public final Instruction getInstructionBefore(Address address) {
@@ -1203,7 +1203,7 @@ public class FlatProgramAPI {
 	 * Returns the instruction defined after the specified address or null
 	 * if no instruction exists.
 	 * The instruction that is returned does not have to be contiguous.
-	 * @param instruction the instruction
+	 * @param address the address of the prior instruction
 	 * @return the instruction defined after the specified address or null if no instruction exists
 	 */
 	public final Instruction getInstructionAfter(Address address) {
@@ -1256,7 +1256,7 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the defined data before the specified data or null if no data exists.
-	 * @param address the data address
+	 * @param data the succeeding data
 	 * @return the defined data before the specified data or null if no data exists
 	 */
 	public final Data getDataBefore(Data data) {
@@ -1274,7 +1274,7 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns the defined data after the specified data or null if no data exists.
-	 * @param address the data address
+	 * @param data preceeding data
 	 * @return the defined data after the specified data or null if no data exists
 	 */
 	public final Data getDataAfter(Data data) {
@@ -1389,7 +1389,7 @@ public class FlatProgramAPI {
 	/**
 	 * Returns the previous non-default primary symbol defined
 	 * after the previous address.
-	 * @param symbol the symbol to use as a starting point
+	 * @param address the address to use as a starting point
 	 * @return the next non-default primary symbol
 	 */
 	public final Symbol getSymbolBefore(Address address) {
@@ -1797,8 +1797,7 @@ public class FlatProgramAPI {
 
 	/**
 	 * Returns a new address inside the specified program as indicated by the string.
-	 * @param p the program to use for determining the address
-	 * @param s string representation of the address desired
+	 * @param addressString string representation of the address desired
 	 * @return the address. Otherwise, return null if the string fails to evaluate
 	 * to a legitimate address
 	 */
@@ -1844,7 +1843,7 @@ public class FlatProgramAPI {
 	/**
 	 * Sets the 'byte' values starting at the specified address.
 	 * @param address the address to set the bytes
-	 * @param second the values to set
+	 * @param values the values to set
 	 * @throws MemoryAccessException if memory does not exist or is uninitialized
 	 */
 	public final void setBytes(Address address, byte[] values) throws MemoryAccessException {
@@ -2304,7 +2303,6 @@ public class FlatProgramAPI {
 	 * Removes the equates defined at the operand index of the instruction.
 	 * @param instruction the instruction
 	 * @param operandIndex the operand index
-	 * @param second scalar value corresponding to equate
 	 */
 	public final void removeEquates(Instruction instruction, int operandIndex) {
 		Address address = instruction.getMinAddress();
@@ -2456,8 +2454,9 @@ public class FlatProgramAPI {
 			folder.createFile(program.getName(), program, monitor);
 		}
 		catch (DuplicateFileException e) {
-			folder.createFile(program.getName() + "_" + SystemUtilities.currentTimeStamp(), program,
-				monitor);
+			SimpleDateFormat formatter = new SimpleDateFormat("dd.MMM.yyyy_HH.mm.ss");
+			String time = formatter.format(new Date());
+			folder.createFile(program.getName() + "_" + time, program, monitor);
 		}
 		finally {
 			if (program == currentProgram) {
@@ -2473,7 +2472,7 @@ public class FlatProgramAPI {
 	 * the root domain folder.
 	 * @return the root domain folder of the current project
 	 */
-	protected DomainFolder getProjectRootFolder() {
+	public DomainFolder getProjectRootFolder() {
 		Project project = AppInfo.getActiveProject();
 		ProjectData projectData = project.getProjectData();
 		DomainFolder folder = projectData.getRootFolder();

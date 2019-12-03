@@ -78,7 +78,7 @@ public class FileHeader implements StructConverter {
      */
     public final static int IMAGE_FILE_AGGRESIVE_WS_TRIM         = 0x0010;
     /**
-     * App can handle >2gb addresses
+     * App can handle &gt;2gb addresses
      */
     public final static int IMAGE_FILE_LARGE_ADDRESS_AWARE       = 0x0020;
     /**
@@ -235,10 +235,13 @@ public class FileHeader implements StructConverter {
 	/**
 	 * Returns the section header at the specified position in the array.
 	 * @param index index of section header to return
-	 * @return the section header at the specified position in the array
+	 * @return the section header at the specified position in the array, or null if invalid
 	 */
     public SectionHeader getSectionHeader(int index) {
-        return sectionHeaders[index];
+		if (index >= 0 && index < sectionHeaders.length) {
+    		return sectionHeaders[index];
+    	}
+    	return null;
     }
 
 	/**
@@ -439,7 +442,7 @@ public class FileHeader implements StructConverter {
 	 * file.
 	 * @param block the memory block template
 	 * @param optionalHeader the related optional header
-	 * @throws MemoryAccessException if the memory block is uninitialized
+	 * @throws RuntimeException if the memory block is uninitialized
 	 */
 	public void addSection(MemoryBlock block, OptionalHeader optionalHeader) {
 		DataDirectory [] directories = optionalHeader.getDataDirectories();

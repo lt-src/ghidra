@@ -970,6 +970,18 @@ void PrintC::opNewOp(const PcodeOp *op)
   pushVnImplied(vn0,op,mods);
 }
 
+void PrintC::opInsertOp(const PcodeOp *op)
+
+{
+  opFunc(op);	// If no other way to print it, print as functional operator
+}
+
+void PrintC::opExtractOp(const PcodeOp *op)
+
+{
+  opFunc(op);	// If no other way to print it, print as functional operator
+}
+
 /// \brief Push a constant with an integer data-type to the RPN stack
 ///
 /// Various checks are made to see if the integer should be printed as an \e equate
@@ -1403,7 +1415,8 @@ bool PrintC::pushPtrCharConstant(uintb val,const TypePointer *ct,const Varnode *
 {
   if (val==0) return false;
   AddrSpace *spc = glb->getDefaultSpace();
-  Address stringaddr = glb->resolveConstant(spc,val,ct->getSize(),op->getAddr());
+  uintb fullEncoding;
+  Address stringaddr = glb->resolveConstant(spc,val,ct->getSize(),op->getAddr(),fullEncoding);
   if (stringaddr.isInvalid()) return false;
   if (!glb->symboltab->getGlobalScope()->isReadOnly(stringaddr,1,Address()))
     return false;	     // Check that string location is readonly

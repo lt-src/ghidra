@@ -18,6 +18,7 @@ package ghidra.program.database.mem;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.*;
@@ -64,7 +65,7 @@ public class MemBlockDBTest extends AbstractGenericTest {
 
 		MemoryMapDBAdapter adapter =
 			new MemoryMapDBAdapterV3(handle, mem, MAX_SUB_BLOCK_SIZE, true);
-		FileBytesAdapter fileBytesAdapter = new FileBytesAdapterV0(handle, mem, true);
+		FileBytesAdapter fileBytesAdapter = new FileBytesAdapterV0(handle, true);
 
 		mem.init(adapter, fileBytesAdapter);
 		mem.setProgram(program);
@@ -313,6 +314,27 @@ public class MemBlockDBTest extends AbstractGenericTest {
 		for (int i = 0; i < 100; i++) {
 			assertEquals(i + 10, b[i]);
 		}
+	}
+
+	@Test
+	public void testWriteBytesAcrossSubBlocks() throws Exception {
+		FileBytes fileBytes = createFileBytes();
+		MemoryBlock block1 = createFileBytesBlock(fileBytes, addr(10), 25, 10);
+		MemoryBlock block2 = createFileBytesBlock(fileBytes, addr(20), 50, 10);
+		mem.join(block1, block2);
+		byte[] bytes = createBytes(20);
+		mem.setBytes(addr(10), bytes);
+		byte[] readBytes = new byte[20];
+		mem.getBytes(addr(10), readBytes);
+		assertTrue(Arrays.equals(bytes, readBytes));
+	}
+
+	private byte[] createBytes(int size) {
+		byte[] bytes = new byte[size];
+		for (int i = 0; i < size; i++) {
+			bytes[i] = (byte) i;
+		}
+		return bytes;
 	}
 
 	@Test
@@ -629,6 +651,17 @@ public class MemBlockDBTest extends AbstractGenericTest {
 		}
 		mappedBlock.putBytes(addr(100), bytes);
 		assertEquals(-1, block.getByte(addr(0)));
+	}
+
+	@Test
+	public void testSetBytesInSubBlocks() throws Exception {
+		FileBytes fileBytes = createFileBytes();
+		MemoryBlock block1 = createFileBytesBlock(fileBytes, addr(0), 0, 10);
+		MemoryBlock block2 = createFileBytesBlock(fileBytes, addr(10), 20, 10);
+		mem.join(block1, block2);
+		assertEquals(20, mem.getByte(addr(10)));
+		mem.setByte(addr(10), (byte) 0);
+		assertEquals(0, mem.getByte(addr(10)));
 	}
 
 	@Test

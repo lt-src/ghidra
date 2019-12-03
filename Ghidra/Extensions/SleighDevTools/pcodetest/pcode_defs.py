@@ -159,9 +159,9 @@ PCodeTest({
 })
 
 PCodeTest({
-    'name': 'AVR8_X5',
+    'name': 'AVR8_6',
     'toolchain': 'AVR/avr-elf',
-    'ccflags': '-mmcu=avrxmega5 -lgcc',
+    'ccflags': '-mmcu=avr6 -lgcc',
     'language_id': 'avr8:LE:16:atmega256',
     'has_float': 0,
     'has_double': 0,
@@ -600,7 +600,7 @@ PCodeTest({
     # Currently the 'omitted' option is only supported by the SDCC toolchain!
     # Causes a bit of funk with tpp.py still including references to these
     # tests in cunit_main.c but the compiler accepts it with a warning. 
-    'omitted': {'PointerManipulation', 'StructUnionManipulation'},
+    'skip_files': ['PointerManipulation.test', 'StructUnionManipulation.test'],
     # These tests are omitted because the SDCC compiler doesn't properly handle
     # structs in functions and requires a more strict format than ANSI C requires.
 })

@@ -824,17 +824,19 @@ int4 ActionShadowVar::apply(Funcdata &data)
 /// \param spc is the address space being pointed to
 /// \param vn is the given Varnode
 /// \param op is the lone descendant of the Varnode
+/// \param slot is the slot index of the Varnode
 /// \param rampoint will hold the Address of the resolved symbol
 /// \param data is the function being analyzed
 /// \return the recovered symbol or NULL
-SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op,Address &rampoint,Funcdata &data)
+SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op,int4 slot,
+					  Address &rampoint,uintb &fullEncoding,Funcdata &data)
 
 {
   bool needexacthit;
   Architecture *glb = data.getArch();
   Varnode *outvn;
   if (vn->getType()->getMetatype() == TYPE_PTR) { // Are we explicitly marked as a pointer
-    rampoint = glb->resolveConstant(spc,vn->getOffset(),vn->getSize(),op->getAddr());
+    rampoint = glb->resolveConstant(spc,vn->getOffset(),vn->getSize(),op->getAddr(),fullEncoding);
     needexacthit = false;
   }
   else {
@@ -849,7 +851,7 @@ SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op
       // A constant parameter or return value could be a pointer
       if (!glb->infer_pointers)
 	return (SymbolEntry *)0;
-      if (op->getSlot(vn)==0)
+      if (slot==0)
 	return (SymbolEntry *)0;
       break;
     case CPUI_COPY:
@@ -862,7 +864,6 @@ SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op
     case CPUI_INT_ADD:
       outvn = op->getOut();
       if (outvn->getType()->getMetatype()==TYPE_PTR) {
-	int4 slot = op->getSlot(vn);
 	// Is there another pointer base in this expression
 	if (op->getIn(1-slot)->getType()->getMetatype()==TYPE_PTR)
 	  return (SymbolEntry *)0; // If so, we are not a pointer
@@ -870,6 +871,10 @@ SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op
 	needexacthit = false;
       }
       else if (!glb->infer_pointers)
+	return (SymbolEntry *)0;
+      break;
+    case CPUI_STORE:
+      if (slot != 2)
 	return (SymbolEntry *)0;
       break;
     default:
@@ -881,7 +886,7 @@ SymbolEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op
     // Check if the constant looks like a single bit or mask
     if (bit_transitions(vn->getOffset(),vn->getSize()) < 3)
       return (SymbolEntry *)0;
-    rampoint = glb->resolveConstant(spc,vn->getOffset(),vn->getSize(),op->getAddr());
+    rampoint = glb->resolveConstant(spc,vn->getOffset(),vn->getSize(),op->getAddr(),fullEncoding);
   }
 
   if (rampoint.isInvalid()) return (SymbolEntry *)0;
@@ -943,10 +948,11 @@ int4 ActionConstantPtr::apply(Funcdata &data)
     else if ((opc == CPUI_PTRSUB)||(opc==CPUI_PTRADD))
       continue;
     Address rampoint;
-    entry = isPointer(rspc,vn,op,rampoint,data);
+    uintb fullEncoding;
+    entry = isPointer(rspc,vn,op,slot,rampoint,fullEncoding,data);
     vn->setPtrCheck();		// Set check flag AFTER searching for symbol
     if (entry != (SymbolEntry *)0) {
-      data.spacebaseConstant(op,slot,entry,rampoint,vn->getOffset(),vn->getSize());
+      data.spacebaseConstant(op,slot,entry,rampoint,fullEncoding,vn->getSize());
       if ((opc == CPUI_INT_ADD)&&(slot==1))
 	data.opSwapInput(op,0,1);
       count += 1;
@@ -1873,7 +1879,7 @@ int4 ActionRestructureVarnode::apply(Funcdata &data)
   bool aliasyes = data.isJumptableRecoveryOn() ? false : (numpass != 0);
   l1->restructureVarnode(aliasyes);
   // Note the alias calculation, may not be very good on the first pass
-  if (data.updateFlags(l1,false))
+  if (data.syncVarnodesWithSymbols(l1,false))
     count += 1;
 
   numpass += 1;
@@ -1898,7 +1904,7 @@ int4 ActionRestructureHigh::apply(Funcdata &data)
 #endif
 
   l1->restructureHigh();
-  if (data.updateFlags(l1,true))
+  if (data.syncVarnodesWithSymbols(l1,true))
     count += 1;
   
 #ifdef OPACTION_DEBUG
@@ -2058,17 +2064,24 @@ int4 ActionSetCasts::apply(Funcdata &data)
     for(iter=bb->beginOp();iter!=bb->endOp();++iter) {
       op = *iter;
       if (op->notPrinted()) continue;
-      if (op->code() == CPUI_CAST) continue;
+      OpCode opc = op->code();
+      if (opc == CPUI_CAST) continue;
+      if (opc == CPUI_PTRADD) {	// Check for PTRADD that no longer fits its pointer
+	int4 sz = (int4)op->getIn(2)->getOffset();
+	TypePointer *ct = (TypePointer *)op->getIn(0)->getHigh()->getType();
+	if ((ct->getMetatype() != TYPE_PTR)||(ct->getPtrTo()->getSize() != AddrSpace::addressToByteInt(sz, ct->getWordSize())))
+	  data.opUndoPtradd(op,true);
+      }
       for(int4 i=0;i<op->numInput();++i) // Do input casts first, as output may depend on input
 	count += castInput(op,i,data,castStrategy);
-      if (op->code() == CPUI_LOAD) {
+      if (opc == CPUI_LOAD) {
 	TypePointer *ptrtype = (TypePointer *)op->getIn(1)->getHigh()->getType();
 	int4 valsize = op->getOut()->getSize();
 	if ((ptrtype->getMetatype()!=TYPE_PTR)||
 	    (ptrtype->getPtrTo()->getSize() != valsize))
 	  data.warning("Load size is inaccurate",op->getAddr());
       }
-      else if (op->code() == CPUI_STORE) {
+      else if (opc == CPUI_STORE) {
 	TypePointer *ptrtype = (TypePointer *)op->getIn(1)->getHigh()->getType();
 	int4 valsize = op->getIn(2)->getSize();
 	if ((ptrtype->getMetatype()!=TYPE_PTR)||
@@ -2150,11 +2163,11 @@ void ActionNameVars::makeRec(ProtoParameter *param,Varnode *vn,map<HighVariable 
     PcodeOp *castop = vn->getDef();
     if (castop->code() == CPUI_CAST) {
       vn = castop->getIn(0);
-      ct = (Datatype *)0;	// Indicate that this is a less prefered name
+      ct = (Datatype *)0;	// Indicate that this is a less preferred name
     }
   }
   HighVariable *high = vn->getHigh();
-  if (!high->isMark()) return;	// Not one of the 
+  if (!high->isMark()) return;	// Not one of the variables needing a name
 
   map<HighVariable *,OpRecommend>::iterator iter = recmap.find(high);
   if (iter != recmap.end()) {	// We have seen this varnode before
@@ -2191,6 +2204,7 @@ void ActionNameVars::lookForFuncParamNames(Funcdata &data,const vector<Varnode *
   for(uint4 i=0;i<varlist.size();++i) {	// Mark all the varnodes that can accept a name from a parameter
     Varnode *vn = varlist[i];
     if (vn->isFree()) continue;
+    if (vn->isInput()) continue;	// Don't override unaffected or input naming strategy
     Symbol *sym = vn->getHigh()->getSymbol();
     if (sym == (Symbol *)0) continue;
     if (!sym->isNameUndefined()) continue;
@@ -2239,6 +2253,7 @@ int4 ActionNameVars::apply(Funcdata &data)
 
   for(int4 i=0;i<manage->numSpaces();++i) { // Build a list of nameable highs
     spc = manage->getSpace(i);
+    if (spc == (AddrSpace *)0) continue;
     enditer = data.endLoc(spc);
     for(iter=data.beginLoc(spc);iter!=enditer;++iter) {
       Varnode *curvn = *iter;
@@ -2874,14 +2889,24 @@ void ActionDeadCode::propagateConsumed(vector<Varnode *> &worklist)
 
   switch(op->code()) {
   case CPUI_INT_MULT:
+    b = coveringmask(outc);
+    if (op->getIn(1)->isConstant()) {
+      int4 leastSet = leastsigbit_set(op->getIn(1)->getOffset());
+      if (leastSet >= 0) {
+	a = calc_mask(vn->getSize()) >> leastSet;
+	a &= b;
+      }
+      else
+	a = 0;
+    }
+    else
+      a = b;
+    pushConsumed(a,op->getIn(0),worklist);
+    pushConsumed(b,op->getIn(1),worklist);
+    break;
   case CPUI_INT_ADD:
   case CPUI_INT_SUB:
-    a = outc | (outc>>1);	// Make sure all 1 bits below
-    a = a | (a>>2);		// highest 1 bit are set
-    a = a | (a>>4);
-    a = a | (a>>8);		
-    a = a | (a>>16);
-    a = a | (a>>32);
+    a = coveringmask(outc);	// Make sure value is filled out as a contiguous mask
     pushConsumed(a,op->getIn(0),worklist);
     pushConsumed(a,op->getIn(1),worklist);
     break;
@@ -3028,6 +3053,34 @@ void ActionDeadCode::propagateConsumed(vector<Varnode *> &worklist)
     pushConsumed(a,op->getIn(0),worklist);
     pushConsumed(a,op->getIn(1),worklist);
     break;
+  case CPUI_INSERT:
+    a = 1;
+    a <<= (int4)op->getIn(3)->getOffset();
+    a -= 1;	// Insert mask
+    pushConsumed(a,op->getIn(1),worklist);
+    a <<= (int4)op->getIn(2)->getOffset();
+    pushConsumed(outc & ~a, op->getIn(0), worklist);
+    b = (outc == 0) ? 0 : ~((uintb)0);
+    pushConsumed(b,op->getIn(2), worklist);
+    pushConsumed(b,op->getIn(3), worklist);
+    break;
+  case CPUI_EXTRACT:
+    a = 1;
+    a <<= (int4)op->getIn(2)->getOffset();
+    a -= 1;	// Extract mask
+    a &= outc;	// Consumed bits of mask
+    a <<= (int4)op->getIn(1)->getOffset();
+    pushConsumed(a,op->getIn(0),worklist);
+    b = (outc == 0) ? 0 : ~((uintb)0);
+    pushConsumed(b,op->getIn(1), worklist);
+    pushConsumed(b,op->getIn(2), worklist);
+    break;
+  case CPUI_POPCOUNT:
+    a = 16 * op->getIn(0)->getSize() - 1;	// Mask for possible bits that could be set
+    a &= outc;					// Of the bits that could be set, which are consumed
+    b = (a == 0) ? 0 : ~((uintb)0);		// if any consumed, treat all input bits as consumed
+    pushConsumed(b,op->getIn(0), worklist);
+    break;
   default:
     a = (outc==0) ? 0 : ~((uintb)0); // all or nothing
     for(int4 i=0;i<op->numInput();++i)
@@ -3094,7 +3147,7 @@ int4 ActionDeadCode::apply(Funcdata &data)
 				// Set pre-live registers
   for(i=0;i<manage->numSpaces();++i) {
     spc = manage->getSpace(i);
-    if (!spc->doesDeadcode()) continue;
+    if (spc == (AddrSpace *)0 || !spc->doesDeadcode()) continue;
     if (data.deadRemovalAllowed(spc)) continue; // Mark consumed if we have NOT heritaged
     viter = data.beginLoc(spc);
     endviter = data.endLoc(spc);
@@ -3138,7 +3191,7 @@ int4 ActionDeadCode::apply(Funcdata &data)
 
   for(i=0;i<manage->numSpaces();++i) {
     spc = manage->getSpace(i);
-    if (!spc->doesDeadcode()) continue;
+    if (spc == (AddrSpace *)0 || !spc->doesDeadcode()) continue;
     if (!data.deadRemovalAllowed(spc)) continue; // Don't eliminate if we haven't heritaged
     viter = data.beginLoc(spc);
     endviter = data.endLoc(spc);
@@ -3416,6 +3469,7 @@ int4 ActionPrototypeTypes::apply(Funcdata &data)
       ProtoParameter *param = data.getFuncProto().getParam(i);
       Varnode *vn = data.newVarnode( param->getSize(), param->getAddress());
       vn = data.setInputVarnode(vn);
+      vn->setLockedInput();
       if (topbl != (BlockBasic *)0)
 	extendInput(data,vn,param,topbl);
       if (ptr_size > 0) {
@@ -4469,6 +4523,7 @@ void universal_action(Architecture *conf)
 	actprop->addRule( new RuleIdentityEl("analysis") );
 	actprop->addRule( new RuleOrMask("analysis") );
 	actprop->addRule( new RuleAndMask("analysis") );
+	actprop->addRule( new RuleOrConsume("analysis") );
 	actprop->addRule( new RuleOrCollapse("analysis") );
 	actprop->addRule( new RuleAndOrLump("analysis") );
 	actprop->addRule( new RuleShiftBitops("analysis") );
@@ -4529,6 +4584,7 @@ void universal_action(Architecture *conf)
 	actprop->addRule( new RuleHumptyOr("analysis") );
 	actprop->addRule( new RuleNegateIdentity("analysis") );
 	actprop->addRule( new RuleSubNormal("analysis") );
+	actprop->addRule( new RulePositiveDiv("analysis") );
 	actprop->addRule( new RuleDivTermAdd("analysis") );
 	actprop->addRule( new RuleDivTermAdd2("analysis") );
 	actprop->addRule( new RuleDivOpt("analysis") );
@@ -4636,12 +4692,12 @@ void universal_action(Architecture *conf)
   act->addAction( new ActionHideShadow("merge") );
   act->addAction( new ActionCopyMarker("merge") );
   act->addAction( new ActionOutputPrototype("localrecovery") );
-  act->addAction( new ActionSetCasts("casts") );
   act->addAction( new ActionInputPrototype("fixateproto") );
   act->addAction( new ActionRestructureHigh("localrecovery") );
   act->addAction( new ActionMapGlobals("fixateglobals") );
   act->addAction( new ActionDynamicSymbols("dynamic") );
   act->addAction( new ActionNameVars("merge") );
+  act->addAction( new ActionSetCasts("casts") );
   act->addAction( new ActionFinalStructure("blockrecovery") );
   act->addAction( new ActionPrototypeWarnings("protorecovery") );
   act->addAction( new ActionStop("base") );

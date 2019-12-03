@@ -286,6 +286,11 @@ public abstract class DockingAction implements DockingActionIf {
 
 	@Override
 	public void setKeyBindingData(KeyBindingData newKeyBindingData) {
+
+		if (!supportsKeyBinding(newKeyBindingData)) {
+			return;
+		}
+
 		KeyBindingData oldData = keyBindingData;
 		keyBindingData = KeyBindingData.validateKeyBindingData(newKeyBindingData);
 
@@ -294,6 +299,27 @@ public abstract class DockingAction implements DockingActionIf {
 		}
 
 		firePropertyChanged(KEYBINDING_DATA_PROPERTY, oldData, keyBindingData);
+	}
+
+	private boolean supportsKeyBinding(KeyBindingData kbData) {
+
+		KeyBindingType type = getKeyBindingType();
+		if (type.supportsKeyBindings()) {
+			return true;
+		}
+
+		KeyBindingPrecedence precedence = null;
+		if (kbData != null) {
+			precedence = kbData.getKeyBindingPrecedence();
+		}
+
+		if (precedence == KeyBindingPrecedence.ReservedActionsLevel) {
+			return true; // reserved actions are special
+		}
+
+		// log a trace message instead of throwing an exception, as to not break any legacy code
+		Msg.error(this, "Action does not support key bindings: " + getFullName(), new Throwable());
+		return false;
 	}
 
 	@Override
@@ -372,9 +398,8 @@ public abstract class DockingAction implements DockingActionIf {
 	/**
 	 * Cleans up any resources used by the action.
 	 */
+	@Override
 	public void dispose() {
-		// TODO this doesn't seem to be called by the framework.  Should't we call this when
-		//      an action is removed from the tool??
 		propertyListeners.clear();
 	}
 
@@ -396,6 +421,13 @@ public abstract class DockingAction implements DockingActionIf {
 			buffer.append('\n');
 			buffer.append("        MENU GROUP:        ").append(menuBarData.getMenuGroup());
 			buffer.append('\n');
+
+			String parentGroup = menuBarData.getParentMenuGroup();
+			if (parentGroup != null) {
+				buffer.append("        PARENT GROUP:         ").append(parentGroup);
+				buffer.append('\n');
+			}
+
 			Icon icon = menuBarData.getMenuIcon();
 			if (icon != null && icon instanceof ImageIconWrapper) {
 				ImageIconWrapper wrapper = (ImageIconWrapper) icon;
@@ -412,6 +444,12 @@ public abstract class DockingAction implements DockingActionIf {
 			buffer.append('\n');
 			buffer.append("        POPUP GROUP:      ").append(popupMenuData.getMenuGroup());
 			buffer.append('\n');
+
+			String parentGroup = popupMenuData.getParentMenuGroup();
+			if (parentGroup != null) {
+				buffer.append("        PARENT GROUP:         ").append(parentGroup);
+				buffer.append('\n');
+			}
 
 			String menuSubGroup = popupMenuData.getMenuSubGroup();
 			if (menuSubGroup != MenuData.NO_SUBGROUP) {

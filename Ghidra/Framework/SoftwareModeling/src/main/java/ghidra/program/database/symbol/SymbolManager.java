@@ -1325,8 +1325,8 @@ public class SymbolManager implements SymbolTable, ManagerDB {
 	/**
 	 * Move symbol.  Only symbol address is changed.
 	 * References must be moved separately.
-	 * @param fromAddr
-	 * @param toAddr
+	 * @param oldAddr the old symbol address
+	 * @param newAddr the new symbol address
 	 */
 	public void moveSymbolsAt(Address oldAddr, Address newAddr) {
 		lock.acquire();
@@ -2274,6 +2274,11 @@ public class SymbolManager implements SymbolTable, ManagerDB {
 		return new NamespaceDB(s, namespaceMgr);
 	}
 
+	@Override
+	public Symbol createSymbolPlaceholder(Address address, long id) {
+		return SymbolDB.createSymbolPlaceholder(this, address, id);
+	}
+
 	/**
 	 * Creates a symbol, specifying all information for the record.  This method is not on the
 	 * public interface and is only intended for program API internal use.  The user of this
@@ -2675,5 +2680,4 @@ class SymbolMatcher implements Predicate<Symbol> {
 		SymbolType type = s.getSymbolType();
 		return type == type1;
 	}
-
 }

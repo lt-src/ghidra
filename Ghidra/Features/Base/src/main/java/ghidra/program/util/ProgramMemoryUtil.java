@@ -176,10 +176,10 @@ public class ProgramMemoryUtil {
 		MemoryBlock[] blocks = mem.getBlocks();
 		MemoryBlock[] tmpBlocks = new MemoryBlock[blocks.length];
 		int j = 0;
-		for (int i = 0; i < blocks.length; i++) {
-			if ((blocks[i].isInitialized() && withBytes) ||
-				(!blocks[i].isInitialized() && !withBytes)) {
-				tmpBlocks[j++] = blocks[i];
+		for (MemoryBlock block : blocks) {
+			if ((block.isInitialized() && withBytes) ||
+				(!block.isInitialized() && !withBytes)) {
+				tmpBlocks[j++] = block;
 			}
 		}
 		MemoryBlock[] typeBlocks = new MemoryBlock[j];
@@ -297,7 +297,7 @@ public class ProgramMemoryUtil {
 		}
 
 		// Just looking for the offset into the segment now, not the whole segment/offset pair
-		if (addrSize == 20) {
+		if (toAddress instanceof SegmentedAddress) {
 			SegmentedAddress segAddr = (SegmentedAddress) toAddress;
 			currentSegment = (short) segAddr.getSegment();
 		}
@@ -322,10 +322,10 @@ public class ProgramMemoryUtil {
 				if (toAddress instanceof SegmentedAddress) {
 					short offsetShort = memory.getShort(a);
 					offsetShort &= offsetShort & 0xffff;
-					SegmentedAddress sega = ((SegmentedAddress) a);
-					short shortSega = (short) (sega.getSegment());
-					shortSega &= shortSega & 0xffff;
 					// this is checking to see if the ref is in the same segment as the toAddr - not sure this is needed anymore
+					// SegmentedAddress sega = ((SegmentedAddress) a);
+					// short shortSega = (short) (sega.getSegment());
+					// shortSega &= shortSega & 0xffff;
 					//	if (offsetShort == shortCurrentOffset) {
 					//*** commenting this out is making it find the instances of 46 01's not the 0a 00's - closer though
 					// check for the case where the reference includes both the segment and offset
@@ -413,11 +413,9 @@ public class ProgramMemoryUtil {
 	 * Direct references are only found at addresses that match the indicated alignment. 
 	 * @param program the program whose memory is to be checked.
 	 * @param alignment direct references are to only be found at the indicated alignment in memory.
-	 * @param toAddressSet the set of addresses that we are interested in finding references to.
-	 * @param directReferenceList the list to be populated with possible direct references
+	 * @param codeUnit the code unit to to search for references to.
 	 * @param monitor a task monitor for progress or to allow canceling.
-	 * @return list of addresses referring directly to the toAddress
-	 * @throws CancelledException if the user cancels via the monitor.
+	 * @return list of addresses referring directly to the toAddress.
 	 */
 	public static List<Address> findDirectReferencesCodeUnit(Program program, int alignment,
 			CodeUnit codeUnit, TaskMonitor monitor) {
@@ -441,8 +439,9 @@ public class ProgramMemoryUtil {
 		}
 
 		for (ReferenceAddressPair rap : directReferenceList) {
-			if (monitor.isCancelled())
+			if (monitor.isCancelled()) {
 				return null;
+			}
 			Address fromAddr = rap.getSource();
 			if (!results.contains(fromAddr)) {
 				results.add(fromAddr);
@@ -624,18 +623,18 @@ public class ProgramMemoryUtil {
 		byte maskBytes[] = null;
 
 		MemoryBlock[] blocks = memory.getBlocks();
-		for (int i = 0; i < blocks.length; i++) {
-			if (!blocks[i].isInitialized()) {
+		for (MemoryBlock block : blocks) {
+			if (!block.isInitialized()) {
 				continue;
 			}
 			if (memoryRange != null &&
-				!memoryRange.intersects(blocks[i].getStart(), blocks[i].getEnd())) {
+				!memoryRange.intersects(block.getStart(), block.getEnd())) {
 				// skip blocks which do not correspond to currentSeg
 				continue;
 			}
 
-			Address start = blocks[i].getStart();
-			Address end = blocks[i].getEnd();
+			Address start = block.getStart();
+			Address end = block.getEnd();
 			Address found = null;
 			while (true) {
 				monitor.checkCanceled();

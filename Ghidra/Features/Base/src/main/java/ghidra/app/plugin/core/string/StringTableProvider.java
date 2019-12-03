@@ -52,7 +52,7 @@ import ghidra.util.task.TaskLauncher;
 import resources.ResourceManager;
 
 /**
- * Component provider for the Search -> For Strings... result dialog.
+ * Component provider for the Search -&gt; For Strings... result dialog.
  */
 public class StringTableProvider extends ComponentProviderAdapter implements DomainObjectListener {
 	private static final ImageIcon ICON = ResourceManager.loadImage("images/kmessedwords.png");
@@ -114,7 +114,7 @@ public class StringTableProvider extends ComponentProviderAdapter implements Dom
 			setTitle(options.isPascalRequired() ? "Pascal String Search" : "String Search");
 			setWindowMenuGroup("String Search");
 			setWindowGroup("String Search");
-			setTabText("String Search - " + DateUtils.getTimeNow());
+			setTabText("String Search - " + DateUtils.formatCurrentTime());
 		}
 		setIcon(ICON);
 		setHelpLocation(new HelpLocation(HelpTopics.SEARCH, "String_Search_Results"));

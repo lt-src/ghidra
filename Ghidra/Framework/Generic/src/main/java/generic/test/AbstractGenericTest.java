@@ -15,7 +15,7 @@
  */
 package generic.test;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import javax.swing.*;
 import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.text.JTextComponent;
 import javax.swing.tree.*;
 
@@ -62,6 +63,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	private static File debugDirectory;
 
 	public static final String TESTDATA_DIRECTORY_NAME = "testdata";
+	public static final String DEFAULT_TOOL_NAME = "CodeBrowser";
 	public static final String DEFAULT_TEST_TOOL_NAME = "TestCodeBrowser";
 
 	private static boolean initialized = false;
@@ -215,7 +217,8 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 
 	/**
 	 * A callback for subclasses when a test has failed. This will be called
-	 * before <code>tearDown()</code>
+	 * <b>after</b> <code>tearDown()</code>.  This means that any diagnostics will have to 
+	 * take into account items that have already been disposed.
 	 * 
 	 * @param e the exception that happened when the test failed
 	 */
@@ -291,7 +294,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	 * @param cls class where resource exists
 	 * @param name resource filename
 	 * @return list of lines contained in file
-	 * @throws IOException
+	 * @throws IOException if an exception occurs reading the given resource
 	 */
 	public static List<String> loadTextResource(Class<?> cls, String name) throws IOException {
 
@@ -347,7 +350,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	 * Returns a file that points to the location on disk of the given relative
 	 * path name. The path is relative to the test resources directory.
 	 *
-	 * @param relativePath
+	 * @param relativePath the path of the file
 	 * @return a file that points to the location on disk of the relative path.
 	 * @throws FileNotFoundException If the directory does not exist
 	 * @throws IOException if the given path does not represent a directory
@@ -485,9 +488,9 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	 * has the type classType. This method is only really useful if it is known
 	 * that only a single field of classType exists within the ownerInstance.
 	 * 
-	 * @param <T>
-	 * @param classType
-	 * @param ownerInstance
+	 * @param <T> the type
+	 * @param classType the class type of the desired field
+	 * @param ownerInstance the object instance that owns the field
 	 * @return field object of type classType or null
 	 */
 	public static <T> T getInstanceFieldByClassType(Class<T> classType, Object ownerInstance) {
@@ -661,10 +664,10 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 		if (button == null) {
 			throw new AssertionError("Couldn't find button " + buttonText + ".");
 		}
-		if (!button.isShowing()) {
+		if (!runSwing(() -> button.isShowing())) {
 			throw new AssertionError("Button " + buttonText + " is not showing.");
 		}
-		if (!button.isEnabled()) {
+		if (!runSwing(() -> button.isEnabled())) {
 			throw new AssertionError("Button " + buttonText + " is not enabled.");
 		}
 		pressButton(button, waitForCompletion);
@@ -700,10 +703,10 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 		if (button == null) {
 			throw new AssertionError("Couldn't find button " + buttonName + ".");
 		}
-		if (!button.isVisible()) {
+		if (!runSwing(() -> button.isShowing())) {
 			throw new AssertionError("Button " + buttonName + " is not showing.");
 		}
-		if (!button.isEnabled()) {
+		if (!runSwing(() -> button.isEnabled())) {
 			throw new AssertionError("Button " + buttonName + " is not enabled.");
 		}
 		pressButton(button, waitForCompletion);
@@ -1293,6 +1296,46 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 		waitForSwing();
 	}
 
+	/**
+	 * Clicks a range of items in a list (simulates holding SHIFT and selecting
+	 * each item in the range in-turn)
+	 * 
+	 * @param list the list to select from
+	 * @param row the initial index
+	 * @param count the number of rows to select
+	 * @throws Exception if there's a problem simulating the click
+	 */
+	public static void clickListRange(final JList list, final int row, int count)
+			throws Exception {
+		waitForSwing();
+		for (int i = row; i < row + count; i++) {
+			Rectangle rect = list.getCellBounds(i, i);
+			clickMouse(list, MouseEvent.BUTTON1, rect.x + 10, rect.y + 10, 1,
+				InputEvent.SHIFT_DOWN_MASK);
+		}
+		waitForSwing();
+	}
+	
+	/**
+	 * Clicks a range of items in a table (simulates holding SHIFT and selecting
+	 * each item in the range)
+	 * 
+	 * @param table the table to select
+	 * @param row the starting row index
+	 * @param count the number of rows to select
+	 * @throws Exception
+	 */
+	public static void clickTableRange(final JTable table, final int row, int count)
+			throws Exception {
+		waitForSwing();
+		for (int i = row; i < row + count; i++) {
+			Rectangle rect = table.getCellRect(i, 0, true);
+			clickMouse(table, MouseEvent.BUTTON1, rect.x + 10, rect.y + 10, 1,
+				InputEvent.SHIFT_DOWN_MASK);
+		}
+		waitForSwing();
+	}
+
 	public static TableCellEditor editCell(final JTable table, final int row, final int col) {
 
 		waitForSwing();
@@ -1303,6 +1346,36 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 		TableCellEditor editor = table.getCellEditor(row, col);
 		assertNotNull("Unable to edit table cell at " + row + ", " + col, editor);
 		return editor;
+	}
+
+	/**
+	 * Gets the rendered value for the specified table cell.  The actual value at the cell may
+	 * not be a String.  This method will get the String display value, as created by the table.
+	 * 
+	 * @param table the table to query
+	 * @param row the row to query
+	 * @param column the column to query
+	 * @return the String value
+	 * @throws IllegalArgumentException if there is no renderer or the rendered component is
+	 *         something from which this method can get a String (such as a JLabel)
+	 */
+	public static String getRenderedTableCellValue(JTable table, int row, int column) {
+
+		return runSwing(() -> {
+
+			TableCellRenderer renderer = table.getCellRenderer(row, column);
+			if (renderer == null) {
+				throw new IllegalArgumentException(
+					"No renderer registered for row/col: " + row + '/' + column);
+			}
+			Component component = table.prepareRenderer(renderer, row, column);
+			if (!(component instanceof JLabel)) {
+				throw new IllegalArgumentException(
+					"Do not know how to get text from a renderer " + "that is not a JLabel");
+			}
+
+			return ((JLabel) component).getText();
+		});
 	}
 
 	public static <T> void setComboBoxSelection(final JComboBox<T> comboField, final T selection) {
@@ -1409,7 +1482,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	/**
 	 * Invoke <code>fixupGUI</code> at the beginning of your JUnit test or in
 	 * its setup() method to make your GUI for the JUnit test appear using the
-	 * system Look & Feel. The system look and feel is the default that Ghidra
+	 * system Look and Feel. The system look and feel is the default that Ghidra
 	 * uses. This will also change the default fonts for the JUnit test to be
 	 * the same as those in Ghidra.
 	 *

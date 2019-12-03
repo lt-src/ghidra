@@ -15,8 +15,7 @@
  */
 package docking;
 
-import static docking.KeyBindingPrecedence.ActionMapLevel;
-import static docking.KeyBindingPrecedence.DefaultLevel;
+import static docking.KeyBindingPrecedence.*;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -37,7 +36,7 @@ import ghidra.util.exception.AssertException;
  * {@link #install()} must be called in order to install this <tt>Singleton</tt> into Java's 
  * key event processing system.
  */
-class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
+public class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
 
 	private static KeyBindingOverrideKeyEventDispatcher instance = null;
 
@@ -66,7 +65,7 @@ class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
 	 * Installs this key event dispatcher into Java's key event processing system.  Calling this
 	 * method more than once has no effect.
 	 */
-	public static void install() {
+	static void install() {
 		if (instance == null) {
 			instance = new KeyBindingOverrideKeyEventDispatcher();
 			KeyboardFocusManager kfm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
@@ -88,7 +87,7 @@ class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
 	 *     <li><b>Reserved keybinding actions</b>
 	 *     <li>KeyListeners on the focused Component</li>
 	 *     <li>InputMap and ActionMap actions for the Component</li>
-	 *     <b><li>Ghidra tool-level actions</li></b>
+	 *     <li><b>Ghidra tool-level actions</b></li>
 	 *     <li>InputMap and ActionMap actions for the Component's parent, and so on up the
 	 *         Swing hierarchy</li>
 	 * </ol>
@@ -221,15 +220,6 @@ class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
 		if (activeWindow instanceof DockingDialog) {
 			return false; // we don't want to process our key bindings when in DockingDialogs
 		}
-
-		Component focusOwner = focusProvider.getFocusOwner();
-		if (focusOwner instanceof KeyStrokeConsumer) {
-			KeyStrokeConsumer keyStrokeConsumer = (KeyStrokeConsumer) focusOwner;
-			if (keyStrokeConsumer.isKeyConsumed(keyStroke)) {
-				return false;
-			}
-		}
-
 		return true; // default case; allow it through
 	}
 
@@ -408,8 +398,9 @@ class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher {
 
 		// ...next see if there is a key binding for when the component is the child of the focus
 		// owner
-		return KeyBindingUtils.getAction(jComponent, keyStroke,
+		action = KeyBindingUtils.getAction(jComponent, keyStroke,
 			JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+		return action;
 	}
 
 	/**

@@ -84,8 +84,6 @@ public class ClientUtil {
 	 * @param host server name or address
 	 * @param port server port, 0 indicates that default port should be used.
 	 * @return repository server adapter
-	 * @throws LoginException thrown if server fails to authenticate user or
-	 * general access is denied.
 	 */
 	public static RepositoryServerAdapter getRepositoryServer(String host, int port) {
 		return getRepositoryServer(host, port, false);
@@ -100,8 +98,6 @@ public class ClientUtil {
 	 * @param forceConnect if true and the server adapter is disconnected, an
 	 * attempt will be made to reconnect.
 	 * @return repository server handle
-	 * @throws LoginException thrown if server fails to authenticate user or
-	 * general access is denied.
 	 */
 	public static RepositoryServerAdapter getRepositoryServer(String host, int port,
 			boolean forceConnect) {
@@ -175,7 +171,13 @@ public class ClientUtil {
 	 * should be obtained from RepositoryServerAdapter.getUser
 	 */
 	public static String getUserName() {
-		return SystemUtilities.getUserName();
+		String name = SystemUtilities.getUserName();
+		// exclude domain prefix which may be included
+		int slashIndex = name.lastIndexOf('\\');
+		if (slashIndex >= 0) {
+			name = name.substring(slashIndex + 1);
+		}
+		return name;
 	}
 
 	/**

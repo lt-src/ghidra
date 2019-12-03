@@ -269,17 +269,17 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 		FieldHeader headerPanel = listingPanel.getFieldHeader();
 		if (headerPanel != null && source instanceof FieldHeaderComp) {
 			FieldHeaderLocation fhLoc = headerPanel.getFieldHeaderLocation(event.getPoint());
-			return new ActionContext(this, fhLoc);
+			return createContext(fhLoc);
 		}
 
 		if (otherPanel != null && otherPanel.isAncestorOf((Component) source)) {
 			Object obj = getContextForMarginPanels(otherPanel, event);
 			if (obj != null) {
-				return new ActionContext(this, obj);
+				return createContext(obj);
 			}
 			return new OtherPanelContext(this, program);
 		}
-		return new ActionContext(this, getContextForMarginPanels(listingPanel, event));
+		return createContext(getContextForMarginPanels(listingPanel, event));
 	}
 
 	private Object getContextForMarginPanels(ListingPanel lp, MouseEvent event) {
@@ -419,7 +419,10 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 
 	void updateTitle() {
 		String subTitle = program == null ? "" : ' ' + program.getDomainFile().getName();
-		String newTitle = isConnected() ? TITLE : "[" + TITLE + subTitle + "]";
+		String newTitle = TITLE + subTitle;
+		if (!isConnected()) {
+			newTitle = '[' + newTitle + ']';
+		}
 		setTitle(newTitle);
 	}
 
@@ -886,8 +889,8 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 		int index = saveState.getInt("INDEX", 0);
 		int yOffset = saveState.getInt("Y_OFFSET", 0);
 		ViewerPosition vp = new ViewerPosition(index, 0, yOffset);
-		listingPanel.getFieldPanel().setViewerPosition(vp.getIndex(), vp.getXOffset(),
-			vp.getYOffset());
+		listingPanel.getFieldPanel()
+				.setViewerPosition(vp.getIndex(), vp.getXOffset(), vp.getYOffset());
 		if (program != null) {
 			currentLocation = ProgramLocation.getLocation(program, saveState);
 			if (currentLocation != null) {
@@ -903,8 +906,8 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 		// (its done in an invoke later)
 		Swing.runLater(() -> {
 			newProvider.doSetProgram(program);
-			newProvider.listingPanel.getFieldPanel().setViewerPosition(vp.getIndex(),
-				vp.getXOffset(), vp.getYOffset());
+			newProvider.listingPanel.getFieldPanel()
+					.setViewerPosition(vp.getIndex(), vp.getXOffset(), vp.getYOffset());
 			newProvider.setLocation(currentLocation);
 		});
 	}
@@ -924,13 +927,6 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 
 	protected FieldNavigator getFieldNavigator() {
 		return fieldNavigator;
-	}
-
-	public void updateTitle(String programName) {
-		decorationPanel.updateTitle(programName);
-
-		String newTitle = isConnected() ? TITLE : "[" + TITLE + "]";
-		setTitle(newTitle + programName);
 	}
 
 	public void setView(AddressSetView view) {
@@ -955,11 +951,11 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 	}
 
 	@Override
-	public List<DockingActionIf> getPopupActions(DockingTool tool, ActionContext context) {
+	public List<DockingActionIf> getPopupActions(DockingTool dt, ActionContext context) {
 		if (context.getComponentProvider() == this) {
 			return listingPanel.getHeaderActions(getName());
 		}
-		return new ArrayList<>();
+		return null;
 	}
 
 //==================================================================================================
@@ -979,8 +975,8 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 		public void actionPerformed(ActionContext context) {
 			boolean show = !listingPanel.isHeaderShowing();
 			listingPanel.showHeader(show);
-			getToolBarData().setIcon(
-				show ? LISTING_FORMAT_COLLAPSE_ICON : LISTING_FORMAT_EXPAND_ICON);
+			getToolBarData()
+					.setIcon(show ? LISTING_FORMAT_COLLAPSE_ICON : LISTING_FORMAT_EXPAND_ICON);
 		}
 	}
 
@@ -1042,5 +1038,21 @@ public class CodeViewerProvider extends NavigatableComponentProviderAdapter
 
 			return list.toArray(new Highlight[list.size()]);
 		}
+	}
+
+	/**
+	 * Add the ListingDisplayListener to the listing panel
+	 * @param listener the listener to add
+	 */
+	public void addListingDisplayListener(ListingDisplayListener listener) {
+		listingPanel.addListingDisplayListener(listener);
+	}
+
+	/**
+	 * Remove the ListingDisplayListener from the listing panel
+	 * @param listener the listener to remove
+	 */
+	public void removeListingDisplayListener(ListingDisplayListener listener) {
+		listingPanel.removeListingDisplayListener(listener);
 	}
 }

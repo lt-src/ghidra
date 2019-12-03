@@ -47,8 +47,9 @@ class VarKeyInteriorNode extends VarKeyNode {
 	 * Construct an existing variable-length-key interior node.
 	 * @param nodeMgr table node manager instance
 	 * @param buf node buffer
+	 * @throws IOException if IO error occurs
 	 */
-	VarKeyInteriorNode(NodeMgr nodeMgr, DataBuffer buf) {
+	VarKeyInteriorNode(NodeMgr nodeMgr, DataBuffer buf) throws IOException {
 		super(nodeMgr, buf);
 	}
 
@@ -242,7 +243,7 @@ class VarKeyInteriorNode extends VarKeyNode {
 	 * key index which corresponds to the specified key offset.  This facilitates
 	 * finding the key which utilizes the buffer storage at the specified 
 	 * offset.
-	 * @returns key index.
+	 * @return key index.
 	 */
 	private int getOffsetIndex(int offset) {
 

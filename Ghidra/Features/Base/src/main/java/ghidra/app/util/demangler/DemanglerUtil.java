@@ -16,7 +16,6 @@
 package ghidra.app.util.demangler;
 
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,7 +38,7 @@ public class DemanglerUtil {
 	 * @return the demangled object or null
 	 */
 	public static DemangledObject demangle(String mangled) {
-		Set<Demangler> demanglers = getDemanglers();
+		List<Demangler> demanglers = getDemanglers();
 		for (Demangler demangler : demanglers) {
 			try {
 				// not sure if we should be doing all symbols, but this is what it used to do
@@ -65,7 +64,7 @@ public class DemanglerUtil {
 	 * @return the demangled object or null
 	 */
 	public static DemangledObject demangle(Program program, String mangled) {
-		Set<Demangler> demanglers = getDemanglers();
+		List<Demangler> demanglers = getDemanglers();
 		for (Demangler demangler : demanglers) {
 			try {
 				if (!demangler.canDemangle(program)) {
@@ -91,14 +90,14 @@ public class DemanglerUtil {
 	 * 
 	 * @return a list of all demanglers
 	 */
-	private static Set<Demangler> getDemanglers() {
+	private static List<Demangler> getDemanglers() {
 		return ClassSearcher.getInstances(Demangler.class);
 	}
 
 	/**
 	 * Converts the list of names into a namespace linked list.
 	 * Given names = { "A", "B", "C" }, which represents "A::B::C".
-	 * The following will be created "Namespace{A}->Namespace{B}->Namespace{C}"
+	 * The following will be created {@literal "Namespace{A}->Namespace{B}->Namespace{C}"}
 	 * and Namespace{C} will be returned.
 	 * 
 	 * NOTE: the list will be empty after the call.

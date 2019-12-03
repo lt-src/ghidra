@@ -77,7 +77,6 @@ public class MemoryBlockUtils {
 	 * @param isOverlay if true, the block will be created in a new overlay space for that block
 	 * @param name the name of the new block.
 	 * @param start the starting address of the new block.
-	 * @param is source of the data used to fill the block or null for zero initialization.
 	 * @param length the length of the new block
 	 * @param comment the comment text to associate with the new block.
 	 * @param source the source of the block (This field is not well defined - currently another comment)
@@ -225,20 +224,35 @@ public class MemoryBlockUtils {
 				block = program.getMemory().createInitializedBlock(name, start, fileBytes, offset,
 					length, isOverlay);
 			}
-			catch (MemoryConflictException e) {
-				block = program.getMemory().createInitializedBlock(name, start, fileBytes, offset,
-					length, true);
+			catch (MemoryConflictException | DuplicateNameException e) {
+				block = createBlockNoDuplicateName(program, name, start, fileBytes, offset, length);
 				log.appendMsg("Conflict attempting to create memory block: " + name +
 					" at address " + start.toString() + " Created block in new overlay instead");
 			}
 		}
-		catch (LockException | DuplicateNameException | MemoryConflictException e) {
+		catch (LockException | MemoryConflictException e) {
 			throw new RuntimeException(e);
 		}
 
 		setBlockAttributes(block, comment, source, r, w, x);
 		adjustFragment(program, block.getStart(), name);
 		return block;
+	}
+
+	private static MemoryBlock createBlockNoDuplicateName(Program program, String blockName,
+			Address start, FileBytes fileBytes, long offset, long length)
+			throws LockException, MemoryConflictException, AddressOverflowException {
+		int count = 1;
+		String name = blockName;
+		while (true) {
+			try {
+				return program.getMemory().createInitializedBlock(name, start, fileBytes, offset,
+					length, true);
+			}
+			catch (DuplicateNameException e) {
+				name = blockName + "_" + count++;
+			}
+		}
 	}
 
 	/**

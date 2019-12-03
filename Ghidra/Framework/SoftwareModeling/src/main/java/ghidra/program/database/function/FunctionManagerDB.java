@@ -275,7 +275,7 @@ public class FunctionManagerDB implements ManagerDB, FunctionManager {
 	 * @param name
 	 * @param nameSpace
 	 * @param extData3 internal symbol-data-3 string (see {@link ExternalLocationDB})
-	 * @param sourceType the source of this external.
+	 * @param source the source of this external.
 	 * @return external function
 	 * @throws InvalidInputException
 	 * @throws DuplicateNameException
@@ -326,7 +326,7 @@ public class FunctionManagerDB implements ManagerDB, FunctionManager {
 	@Override
 	public Function createThunkFunction(String name, Namespace nameSpace, Address entryPoint,
 			AddressSetView body, Function thunkedFunction, SourceType source)
-			throws DuplicateNameException, OverlappingFunctionException {
+			throws OverlappingFunctionException {
 		try {
 			return createFunction(name, nameSpace, entryPoint, body, thunkedFunction, source);
 		}

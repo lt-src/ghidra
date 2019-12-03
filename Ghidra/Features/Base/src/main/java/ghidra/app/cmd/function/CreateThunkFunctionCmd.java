@@ -64,12 +64,12 @@ public class CreateThunkFunctionCmd extends BackgroundCommand {
 	 * converted to a thunk, otherwise an error will result.
 	 * @param referencedFunctionAddr the function address to which this thunk refers.  If no function
 	 * exists at that specified referencedFunctionAddr one will be created per the following scheme:
-	 * <pre><ul>
-	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will
+	 * <br><ul>
+	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will<br>
 	 * be created (a check will be done to look for an previously defined external location)</li>
-	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be
+	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be<br>
 	 * created at that address.</li>
-	 * </ul></pre>
+	 * </ul>
 	 */
 	public CreateThunkFunctionCmd(Address entry, AddressSetView body,
 			Address referencedFunctionAddr, List<Address> referringThunkAddresses) {
@@ -88,12 +88,12 @@ public class CreateThunkFunctionCmd extends BackgroundCommand {
 	 * converted to a thunk, otherwise an error will result.
 	 * @param referencedFunctionAddr the function address to which this thunk refers.  If no function
 	 * exists at that specified referencedFunctionAddr one will be created per the following scheme:
-	 * <pre><ul>
-	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will
+	 * <br><ul>
+	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will<br>
 	 * be created (a check will be done to look for an previously defined external location)</li>
-	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be
+	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be<br>
 	 * created at that address.</li>
-	 * </ul></pre>
+	 * </ul>
 	 */
 	public CreateThunkFunctionCmd(Address entry, AddressSetView body,
 			Address referencedFunctionAddr) {
@@ -113,14 +113,14 @@ public class CreateThunkFunctionCmd extends BackgroundCommand {
 	 * converted to a thunk, otherwise an error will result.
 	 * @param referencedSymbol the symbol which identifies the intended function to which this thunk refers.
 	 * If no function exists at that specified referencedSymbol location, one will be created per the following scheme:
-	 * <pre><ul>
-	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will
+	 * <br><ul>
+	 * <li>If referencedFunctionAddr is not contained within a memory block, an external function will<br>
 	 * be created (a check will be done to look for an previously defined external location)</li>
-	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be
+	 * <li>If referencedFunctionAddr corresponds to an instruction, a new function will be<br>
 	 * created at that address.</li>
-	 * <li>If referencedSymbol corresponds to an external CODE symbol, it will be converted to an
+	 * <li>If referencedSymbol corresponds to an external CODE symbol, it will be converted to an<br>
 	 * external FUNCTION</li>
-	 * </ul></pre>
+	 * </ul>
 	 */
 	public CreateThunkFunctionCmd(Address entry, AddressSetView body, Symbol referencedSymbol) {
 		this(entry, body, (Address) null);
@@ -227,11 +227,6 @@ public class CreateThunkFunctionCmd extends BackgroundCommand {
 		try {
 			thunkFunction = functionMgr.createThunkFunction(name, namespace, entry, body,
 				referencedFunction, source);
-		}
-		catch (DuplicateNameException e) {
-			Msg.error(this, "Dynamically generated thunk name conlict: " + e.getMessage());
-			setStatusMsg("Thunk name conflict: " + e.getMessage());
-			return false;
 		}
 		catch (OverlappingFunctionException e) {
 			setStatusMsg("Specified body overlaps existing function(s): " + e.getMessage());
@@ -690,7 +685,9 @@ public class CreateThunkFunctionCmd extends BackgroundCommand {
 			for (Iterator<Varnode> iterator = setRegisters.iterator(); iterator.hasNext();) {
 				Varnode rvnode = iterator.next();
 				Register reg = program.getRegister(rvnode);
-				if (reg.isHidden()) {
+				// the register pcode access could have fallen in the middle of a valid register
+				//  thus no register will exist at the varnode
+				if (reg != null && reg.isHidden()) {
 					iterator.remove();
 				}
 			}

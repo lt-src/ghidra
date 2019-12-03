@@ -88,7 +88,7 @@ public class DecompilerController {
 	 * Shows the function containing the given location in the decompilerPanel.  Also, positions the
 	 * decompilerPanel's cursor to the closest equivalent position. If the decompilerPanel is
 	 * already displaying the function, then only the cursor is repositioned.  To force a
-	 * re-decompile use {@link #refreshDisplay(Program, ProgramLocation)}.
+	 * re-decompile use {@link #refreshDisplay(Program, ProgramLocation, File)}.
 	 *
 	 * @param program the program for the given location
 	 * @param location the location containing the function to be displayed and the location in
@@ -153,6 +153,14 @@ public class DecompilerController {
 
 	public void setMouseNavigationEnabled(boolean enabled) {
 		decompilerPanel.setMouseNavigationEnabled(enabled);
+	}
+
+	/**
+	 * Resets the native decompiler process.  Call this method when the decompiler's view
+	 * of a program has been invalidated, such as when a new overlay space has been added.
+	 */
+	public void resetDecompiler() {
+		decompilerMgr.resetDecompiler();
 	}
 
 //==================================================================================================
@@ -296,4 +304,5 @@ public class DecompilerController {
 			}
 		}
 	}
+
 }

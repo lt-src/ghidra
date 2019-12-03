@@ -15,7 +15,7 @@
  */
 package docking.actions;
 
-import static org.apache.commons.lang3.StringUtils.indexOfIgnoreCase;
+import static org.apache.commons.lang3.StringUtils.*;
 
 import java.awt.Component;
 import java.awt.KeyboardFocusManager;
@@ -174,6 +174,69 @@ public class KeyBindingUtils {
 	}
 
 	/**
+	 * Changes the given key event to the new source component and then dispatches that event.
+	 * This method is intended for clients that wish to effectively take a key event given to 
+	 * one component and give it to another component.  
+	 * 
+	 * <p>This method exists to deal with the complicated nature of key event processing and 
+	 * how our (not Java's) framework processes key event bindings to trigger actions.  If not
+	 * for our special processing of action key bindings, then this method would not be 
+	 * necessary.
+	 * 
+	 * <p><b>This is seldom-used code; if you don't know when to use this code, then don't.</b>
+	 * 
+	 * @param newSource the new target of the event
+	 * @param e the existing event
+	 */
+	public static void retargetEvent(Component newSource, KeyEvent e) {
+
+		if (e.getSource() == newSource) {
+			return; // yes '=='; prevent recursion 
+		}
+
+		KeyEvent newEvent = new KeyEvent(newSource, e.getID(), e.getWhen(), e.getModifiersEx(),
+			e.getKeyCode(), e.getKeyChar(), e.getKeyLocation());
+
+		/*
+		 						Unusual Code Alert!
+		 						
+			The KeyboardFocusManager is a complicated beast.  Here we use knowledge of one such
+			complication to correctly route key events.  If the client of this method passes 
+			a component whose 'isShowing()' returns false, then the manager will not send the
+			event to that component.   Almost all clients will pass fully attached/realized 
+			components to the manager.   We, however, will sometimes pass components that are not
+			attached; for example, when we are using said components with a renderer to perform
+			our own painting.   In the case of non-attached components, we must call the 
+			redispatchEvent() method ourselves.
+			
+			Why don't we just always call redispatchEvent()?  Well, that 
+			method will not pass the new cloned event we just created back through the full 
+			key event pipeline.  This means that tool-level (our Tool API, not Java) 
+			actions will not work, as tool-level actions are handled at the beginning of the 
+			key event pipeline, not by the components themselves.
+			
+			Also, we have here guilty knowledge that the aforementioned tool-level key processing 
+			will check to see if the event was consumed.  If consumed, then no further processing 
+			will happen; if not consumed, then the framework will continue to process the event 
+			passed into this method.   Thus, after we send the new event, we will update the
+			original event to match the consumed state of our new event.  This means that the
+			component passed to this method must, somewhere in its processing, consume the key
+			event we dispatch here, if they do not wish for any further processing to take place.
+		 */
+		KeyboardFocusManager kfm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+		if (newSource.isShowing()) {
+			kfm.dispatchEvent(newEvent);
+		}
+		else {
+			kfm.redispatchEvent(newSource, newEvent);
+		}
+
+		if (newEvent.isConsumed()) {
+			e.consume();
+		}
+	}
+
+	/**
 	 * A convenience method to register the given action with the given
 	 * component. This is not usually done, as the action system is usually
 	 * managed by the application's tool. However, for actions that are not
@@ -285,12 +348,31 @@ public class KeyBindingUtils {
 	}
 
 	/**
+	 * Allows the client to clear Java key bindings when the client is creating a docking 
+	 * action.   Without this call, any actions bound to the given component will prevent an
+	 * action with the same key binding from firing.  This is useful when your
+	 * application is using tool-level key bindings that share the same
+	 * keystroke as a built-in Java action, such as Ctrl-C for the copy action.
+	 * 
+	 * @param component the component for which to clear the key binding
+	 * @param action the action from which to get the key binding
+	 */
+	public static void clearKeyBinding(JComponent component, DockingActionIf action) {
+		KeyStroke keyBinding = action.getKeyBinding();
+		if (keyBinding == null) {
+			return;
+		}
+		clearKeyBinding(component, keyBinding);
+	}
+
+	/**
 	 * Allows clients to clear Java key bindings. This is useful when your
 	 * application is using tool-level key bindings that share the same
 	 * keystroke as a built-in Java action, such as Ctrl-C for the copy action.
 	 * <p>
-	 * Note: this method clears focus for the default
-	 * ({@link JComponent#WHEN_FOCUSED}) focus condition.
+	 * Note: this method clears the key binding for the 
+	 * {@link JComponent#WHEN_FOCUSED} and 
+	 * {@link JComponent#WHEN_ANCESTOR_OF_FOCUSED_COMPONENT} focus conditions.
 	 * 
 	 * @param component the component for which to clear the key binding
 	 * @param keyStroke the keystroke of the binding to be cleared
@@ -298,6 +380,7 @@ public class KeyBindingUtils {
 	 */
 	public static void clearKeyBinding(JComponent component, KeyStroke keyStroke) {
 		clearKeyBinding(component, keyStroke, JComponent.WHEN_FOCUSED);
+		clearKeyBinding(component, keyStroke, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 	}
 
 	/**
@@ -314,12 +397,9 @@ public class KeyBindingUtils {
 	public static void clearKeyBinding(JComponent component, KeyStroke keyStroke,
 			int focusCondition) {
 		InputMap inputMap = component.getInputMap(focusCondition);
-		ActionMap actionMap = component.getActionMap();
-		if (inputMap == null || actionMap == null) {
-			return;
+		if (inputMap != null) {
+			inputMap.put(keyStroke, "none");
 		}
-
-		inputMap.put(keyStroke, "none");
 	}
 
 	/**
@@ -553,7 +633,7 @@ public class KeyBindingUtils {
 
 	/**
 	 * Convert the toString() form of the keyStroke.
-	 * <br>In Java 1.4.2 & earlier, Ctrl-M is returned as "keyCode CtrlM-P"
+	 * <br>In Java 1.4.2 and earlier, Ctrl-M is returned as "keyCode CtrlM-P"
 	 * and we want it to look like: "Ctrl-M".
 	 * <br>In Java 1.5.0, Ctrl-M is returned as "ctrl pressed M"
 	 * and we want it to look like: "Ctrl-M".
@@ -661,7 +741,7 @@ public class KeyBindingUtils {
 	 *    ctrl Z
 	 * </pre>  
 	 * 
-	 * @param keyStroke
+	 * @param keyStroke the key stroke
 	 * @return the new key stroke (as returned by  {@link KeyStroke#getKeyStroke(String)}
 	 */
 	public static KeyStroke parseKeyStroke(String keyStroke) {
